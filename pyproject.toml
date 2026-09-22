@@ -16,4 +16,5 @@ dependencies = [
     "sentence-transformers>=6.1.0",
     "sqlalchemy>=2.0.54",
     "uvicorn>=0.53.0",
+    "watchdog>=6.0.0",
 ]
