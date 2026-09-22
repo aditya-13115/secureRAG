@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-import fitz  # PyMuPDF
+import pymupdf
 from docx import Document as DocxDocument
 from openpyxl import load_workbook
 
@@ -89,7 +89,7 @@ def load_pdf(path: Path) -> list[LoadedBlock]:
 
     blocks: list[LoadedBlock] = []
 
-    with fitz.open(path) as pdf:
+    with pymupdf.open(path) as pdf:
 
         for page_index, page in enumerate(pdf):
 

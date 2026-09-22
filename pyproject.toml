@@ -16,6 +16,7 @@ dependencies = [
     "requests>=2.34.2",
     "sentence-transformers>=6.1.0",
     "sqlalchemy>=2.0.54",
+    "tqdm>=4.70.1",
     "uvicorn>=0.53.0",
     "watchdog>=6.0.0",
 ]

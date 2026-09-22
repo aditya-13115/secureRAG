@@ -2601,6 +2601,7 @@ dependencies = [
     { name = "requests" },
     { name = "sentence-transformers" },
     { name = "sqlalchemy" },
+    { name = "tqdm" },
     { name = "uvicorn" },
     { name = "watchdog" },
 ]
@@ -2624,6 +2625,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.34.2" },
     { name = "sentence-transformers", specifier = ">=6.1.0" },
     { name = "sqlalchemy", specifier = ">=2.0.54" },
+    { name = "tqdm", specifier = ">=4.70.1" },
     { name = "uvicorn", specifier = ">=0.53.0" },
     { name = "watchdog", specifier = ">=6.0.0" },
 ]
