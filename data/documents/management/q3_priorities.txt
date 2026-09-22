@@ -1,0 +1,24 @@
+Q3 2026 MANAGEMENT PRIORITIES
+=============================
+Document ID   : MGT-PRI-2026-Q3
+Owner         : CEO Office
+Classification: CONFIDENTIAL
+Access Scope  : CEO, CTO, COFOUNDER, MANAGEMENT
+Effective Date: 2026-07-01
+
+PRIORITY 1 - ENTERPRISE EXECUTION
+---------------------------------
+Reduce time from signed contract to first value. Establish an onboarding checklist and a named
+cross-functional owner for each strategic account.
+
+PRIORITY 2 - INTERNAL LEVERAGE
+------------------------------
+Pilot the Second Brain with controlled access, strong citations, and an audit trail. Focus first
+on finance, technology, HR, and public knowledge sources.
+
+PRIORITY 3 - OPERATING RHYTHM
+-----------------------------
+Use a monthly scorecard to surface only material deviations. Leaders should spend more time on
+decisions and trade-offs than on status narration.
+
+Synthetic prototype corpus - not real company data.

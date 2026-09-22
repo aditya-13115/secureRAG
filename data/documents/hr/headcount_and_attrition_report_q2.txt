@@ -1,0 +1,30 @@
+Q2 FY2026 HEADCOUNT AND ATTRITION REPORT
+========================================
+Document ID   : HR-ANL-2026-Q2
+Owner         : People Analytics
+Classification: CONFIDENTIAL
+Access Scope  : CEO, CTO, COFOUNDER, FINANCE_HEAD, HR_HEAD
+Effective Date: 2026-07-20
+
+HEADCOUNT
+---------
+Closing headcount for Q2 was 118 employees: 58 in Technology, 14 in Finance, 13 in People
+Operations, 12 in Marketing, 9 in Management Operations, and 12 in other company functions.
+
+Net headcount increased by 11 during the quarter. Most growth came from backend engineering,
+data engineering, and enterprise sales support.
+
+ATTRITION
+---------
+Voluntary attrition was 6.8% annualized for the quarter. Exit interviews most frequently
+referenced role scope, compensation expectations, and relocation preferences.
+
+The People team is tracking attrition by level and tenure to separate early-tenure onboarding
+issues from broader retention patterns.
+
+ACTIONS
+-------
+Managers will review onboarding completion, role clarity, and internal mobility with employees
+in their first 180 days. Compensation band utilization will be reviewed before the annual cycle.
+
+Synthetic prototype corpus - not real company data.

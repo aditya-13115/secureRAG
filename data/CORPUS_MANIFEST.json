@@ -1,0 +1,85 @@
+{
+  "company": "Monk-E Technologies Pvt. Ltd.",
+  "generated_on": "2026-09-22",
+  "synthetic": true,
+  "domains": [
+    {
+      "domain": "FINANCE",
+      "directory": "finance",
+      "access_scope": "CEO, CTO, COFOUNDER, FINANCE_HEAD, HR_HEAD",
+      "documents": [
+        "FY2026_budget_and_variance.xlsx",
+        "Q2_financial_review.pdf",
+        "board_finance_update_june_2026.txt",
+        "month_end_close_checklist.md",
+        "rolling_cashflow_forecast.csv",
+        "vendor_payment_policy.docx"
+      ]
+    },
+    {
+      "domain": "HR",
+      "directory": "hr",
+      "access_scope": "CEO, CTO, COFOUNDER, FINANCE_HEAD, HR_HEAD",
+      "documents": [
+        "benefits_overview_2026.csv",
+        "compensation_framework_and_bands.xlsx",
+        "employee_handbook.pdf",
+        "headcount_and_attrition_report_q2.txt",
+        "leave_and_attendance_policy.md",
+        "performance_review_cycle.docx"
+      ]
+    },
+    {
+      "domain": "TECHNOLOGY",
+      "directory": "technology",
+      "access_scope": "CEO, CTO, COFOUNDER, TECHNOLOGY_DEPARTMENT",
+      "documents": [
+        "coding_standards.md",
+        "engineering_architecture.pdf",
+        "incident_response_runbook.docx",
+        "infrastructure_inventory.txt",
+        "service_catalog_and_ownership.xlsx",
+        "technology_roadmap_h2_2026.csv"
+      ]
+    },
+    {
+      "domain": "MANAGEMENT",
+      "directory": "management",
+      "access_scope": "CEO, CTO, COFOUNDER, MANAGEMENT",
+      "documents": [
+        "company_okrs_q3_2026.xlsx",
+        "decision_log_q3.docx",
+        "leadership_operating_review.pdf",
+        "management_principles.md",
+        "org_structure.csv",
+        "q3_priorities.txt"
+      ]
+    },
+    {
+      "domain": "MARKETING",
+      "directory": "marketing",
+      "access_scope": "CEO, CTO, COFOUNDER, MARKETING_DEPARTMENT",
+      "documents": [
+        "brand_guidelines.docx",
+        "campaign_performance_august_2026.xlsx",
+        "current_campaigns.md",
+        "customer_acquisition_report_august.txt",
+        "q3_campaign_brief.pdf",
+        "social_media_calendar_september_2026.csv"
+      ]
+    },
+    {
+      "domain": "PUBLIC",
+      "directory": "public",
+      "access_scope": "ALL_AUTHENTICATED_EMPLOYEES",
+      "documents": [
+        "company_overview.pdf",
+        "current_company_announcements.txt",
+        "employee_faq.md",
+        "employee_quick_start.docx",
+        "holiday_calendar_2026.xlsx",
+        "office_locations.csv"
+      ]
+    }
+  ]
+}

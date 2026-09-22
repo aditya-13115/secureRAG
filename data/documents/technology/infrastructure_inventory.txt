@@ -1,0 +1,29 @@
+TECHNOLOGY INFRASTRUCTURE INVENTORY
+===================================
+Document ID   : TECH-OPS-2026-09
+Owner         : Platform Engineering
+Classification: INTERNAL
+Access Scope  : CEO, CTO, COFOUNDER, TECHNOLOGY_DEPARTMENT
+Effective Date: 2026-09-01
+
+COMPUTE
+-------
+Production API workloads run on managed container infrastructure. Background ingestion workers
+scale independently of synchronous API services.
+
+Development environments use local containers where practical to keep the application and
+supporting services reproducible.
+
+DATA SYSTEMS
+------------
+The reference prototype uses SQLite for application metadata and ChromaDB for vector search. The
+target architecture uses PostgreSQL with pgvector and object storage for production scale.
+
+Operational backups are retained independently from the application runtime.
+
+OBSERVABILITY
+-------------
+Core services emit structured logs, request IDs, latency measurements, error counts, and
+selected business metrics. Sensitive payloads are excluded from general-purpose logs.
+
+Synthetic prototype corpus - not real company data.

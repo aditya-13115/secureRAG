@@ -1,0 +1,30 @@
+BOARD FINANCE UPDATE - JUNE 2026
+================================
+Document ID   : FIN-BRD-026
+Owner         : CFO Office
+Classification: CONFIDENTIAL
+Access Scope  : CEO, CTO, COFOUNDER, FINANCE_HEAD, HR_HEAD
+Effective Date: 2026-07-05
+
+BOARD SNAPSHOT
+--------------
+H1 revenue was INR 204.7 million, approximately 5.2% above the internal plan. H1 operating
+expense was INR 120.7 million, 1.6% below plan.
+
+The company closed June with INR 146.5 million of cash. The base plan assumes a controlled H2
+hiring pace and no major acquisition.
+
+KEY RISKS
+---------
+The largest financial sensitivity is the timing of two enterprise renewals scheduled for
+September. Finance is modelling a downside case using a 45-day delay assumption.
+
+Infrastructure spend is trending upward as inference volume grows; Technology is evaluating
+reserved capacity versus on-demand usage.
+
+DECISIONS REQUESTED
+-------------------
+Approve the revised H2 cloud budget ceiling of INR 31 million and authorize Finance to
+reforecast monthly if usage exceeds 90% of the ceiling before the final month of the quarter.
+
+Synthetic prototype corpus - not real company data.

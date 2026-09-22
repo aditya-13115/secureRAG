@@ -1,0 +1,6 @@
+Initiative,Owner,Quarter,Status,Success Metric,Dependency
+SecureRAG prototype,AI Platform,Q3,In Progress,ACL-aware retrieval demo,Identity model
+Inference cost controls,AI Platform,Q3,Planned,20% cost reduction per request,Usage telemetry
+Observability refresh,Platform,Q3,In Progress,Trace coverage > 90%,OTel rollout
+Document ingestion v2,AI Platform,Q4,Planned,5+ source types,Parser framework
+Data residency controls,Platform,Q4,Discovery,Region-aware storage,Security review

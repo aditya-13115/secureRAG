@@ -1,0 +1,24 @@
+CURRENT COMPANY ANNOUNCEMENTS
+=============================
+Document ID   : PUB-ANN-2026-09
+Owner         : Corporate Communications
+Classification: PUBLIC_INTERNAL
+Access Scope  : ALL_AUTHENTICATED_EMPLOYEES
+Effective Date: 2026-09-10
+
+SECOND BRAIN PILOT
+------------------
+A controlled internal pilot of the Monk-E Second Brain is underway. The pilot focuses on secure
+retrieval across public, technology, finance, HR, management, and campaign content.
+
+QUARTERLY TOWN HALL
+-------------------
+The next company town hall is scheduled for 2026-09-30. Teams should submit questions to their
+department representative before the session.
+
+SECURITY TRAINING
+-----------------
+Annual security training is due by 2026-10-15. Employees who completed the course earlier in the
+year do not need to repeat it unless notified.
+
+Synthetic prototype corpus - not real company data.

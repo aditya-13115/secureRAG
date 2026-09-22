@@ -1,0 +1,28 @@
+CUSTOMER ACQUISITION REPORT - AUGUST 2026
+=========================================
+Document ID   : MKT-ANL-2026-08
+Owner         : Growth Analytics
+Classification: CONFIDENTIAL
+Access Scope  : CEO, CTO, COFOUNDER, MARKETING_DEPARTMENT
+Effective Date: 2026-09-05
+
+TOPLINE
+-------
+August generated 3,920 marketing-qualified leads, 576 sales-qualified leads, and an estimated
+INR 66.0 million in qualified pipeline across tracked campaigns.
+
+PERFORMANCE NOTES
+-----------------
+The AI Ops Webinar produced the largest qualified-lead count. Enterprise Reliability generated
+fewer leads but a higher share of enterprise opportunities.
+
+Events remain expensive per qualified lead but show stronger average opportunity size. The
+growth team is therefore evaluating event quality using pipeline contribution rather than lead
+volume alone.
+
+NEXT MONTH
+----------
+September will shift budget toward content and executive roundtables, with tighter audience
+exclusions on broad paid campaigns.
+
+Synthetic prototype corpus - not real company data.
