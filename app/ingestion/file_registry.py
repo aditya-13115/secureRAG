@@ -7,12 +7,12 @@ from pathlib import Path
 from sqlalchemy import select
 
 from app.db.database import SessionLocal
-from app.db.models import (
-    Department,
-    Document,
-    Role,
-)
+from app.db.models import Department, Document
 
+
+# ============================================================
+# PATH CONFIGURATION
+# ============================================================
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -20,6 +20,10 @@ DOCUMENT_ROOT = (
     PROJECT_ROOT / "data" / "documents"
 ).resolve()
 
+
+# ============================================================
+# SUPPORTED FILE TYPES
+# ============================================================
 
 SUPPORTED_EXTENSIONS = {
     ".pdf": "PDF",
@@ -31,6 +35,14 @@ SUPPORTED_EXTENSIONS = {
 }
 
 
+# ============================================================
+# DOCUMENT FOLDER → OWNER DEPARTMENT
+#
+# IMPORTANT:
+# This mapping determines ownership only.
+# It does NOT determine access permissions.
+# ============================================================
+
 FOLDER_TO_DEPARTMENT = {
     "finance": "FIN",
     "hr": "HR",
@@ -41,30 +53,48 @@ FOLDER_TO_DEPARTMENT = {
 }
 
 
-GLOBAL_ROLE_CODES = {
-    "CEO",
-    "CTO",
-    "COFOUNDER",
-}
+# ============================================================
+# DOCUMENT STATES
+# ============================================================
+
+STATUS_PENDING_POLICY = "PENDING_POLICY"
+STATUS_READY_FOR_INGESTION = "READY_FOR_INGESTION"
+STATUS_INDEXING = "INDEXING"
+STATUS_INDEXED = "INDEXED"
+STATUS_FAILED = "FAILED"
+STATUS_DELETED = "DELETED"
 
 
-RESTRICTED_ROLE_CODES = {
-    "CEO",
-    "CTO",
-    "COFOUNDER",
-    "FINANCE_HEAD",
-    "HR_HEAD",
-}
+# ============================================================
+# ACCESS SCOPE STATES
+# ============================================================
+
+ACCESS_PENDING = "PENDING"
+ACCESS_PUBLIC = "PUBLIC"
+ACCESS_DEPARTMENT = "DEPARTMENT"
+ACCESS_ROLE = "ROLE"
+ACCESS_USER = "USER"
 
 
-def utc_now():
+# ============================================================
+# HELPERS
+# ============================================================
+
+def utc_now() -> datetime:
+    """
+    Return the current UTC timestamp.
+    """
     return datetime.now(timezone.utc)
 
 
 def calculate_sha256(path: Path) -> str:
     """
-    Calculate file checksum so we can detect content changes.
+    Calculate a SHA-256 checksum for a file.
+
+    The checksum allows us to determine whether the file's
+    contents have actually changed.
     """
+
     digest = hashlib.sha256()
 
     with path.open("rb") as file:
@@ -75,6 +105,10 @@ def calculate_sha256(path: Path) -> str:
 
 
 def get_source_type(path: Path) -> str:
+    """
+    Convert a file extension into a normalized source type.
+    """
+
     return SUPPORTED_EXTENSIONS.get(
         path.suffix.lower(),
         "UNKNOWN",
@@ -83,8 +117,17 @@ def get_source_type(path: Path) -> str:
 
 def build_document_key(relative_path: str) -> str:
     """
-    Create a stable application-level key from the path.
+    Create a stable application-level identifier.
+
+    Example:
+
+        finance/q2_report.pdf
+
+    becomes something like:
+
+        DOC-a8f2c4...
     """
+
     digest = hashlib.sha256(
         relative_path.encode("utf-8")
     ).hexdigest()
@@ -94,14 +137,17 @@ def build_document_key(relative_path: str) -> str:
 
 def get_title(path: Path) -> str:
     """
-    Convert:
+    Convert a filename into a human-readable title.
+
+    Example:
 
         Q2_financial_review.pdf
 
-    into:
+    becomes:
 
         Q2 Financial Review
     """
+
     return (
         path.stem
         .replace("_", " ")
@@ -110,125 +156,70 @@ def get_title(path: Path) -> str:
     )
 
 
-def infer_policy(
-    category: str,
-    filename: str,
-) -> tuple[str, str]:
-    """
-    Prototype policy inference.
-
-    In production this should come from an explicit admin
-    policy rather than guessing from filenames.
-    """
-
-    filename_lower = filename.lower()
-
-    # Public folder
-    if category == "public":
-        return "PUBLIC", "PUBLIC_INTERNAL"
-
-    # Sensitive HR / Finance content
-    sensitive_keywords = (
-        "salary",
-        "compensation",
-        "payroll",
-        "board_finance",
-    )
-
-    if any(
-        keyword in filename_lower
-        for keyword in sensitive_keywords
-    ):
-        return "ROLE", "RESTRICTED"
-
-    # Department documents
-    if category in {
-        "finance",
-        "hr",
-    }:
-        return "DEPARTMENT", "CONFIDENTIAL"
-
-    return "DEPARTMENT", "INTERNAL"
-
-
-def clear_document_acl(document: Document) -> None:
-    """
-    Remove previously inferred ACLs before rebuilding them.
-    """
-
-    document.allowed_departments.clear()
-    document.allowed_roles.clear()
-    document.allowed_users.clear()
-
-
-def apply_document_acl(
+def get_owner_department(
     session,
-    document: Document,
     category: str,
-) -> None:
+) -> Department:
     """
-    Build the prototype ACL from the document's location/policy.
+    Determine the owning department from the document folder.
+
+    NOTE:
+        Folder location determines ownership metadata only.
+        It does NOT grant access.
     """
 
-    clear_document_acl(document)
-
-    access_scope, classification = infer_policy(
+    department_code = FOLDER_TO_DEPARTMENT.get(
         category,
-        document.filename,
+        "GENERAL",
     )
 
-    document.access_scope = access_scope
-    document.classification = classification
-
-    if access_scope == "PUBLIC":
-        return
-
-    if access_scope == "ROLE":
-        roles = (
-            session.execute(
-                select(Role).where(
-                    Role.code.in_(RESTRICTED_ROLE_CODES)
-                )
+    department = (
+        session.execute(
+            select(Department).where(
+                Department.code == department_code
             )
-            .scalars()
-            .all()
+        )
+        .scalar_one_or_none()
+    )
+
+    if department is None:
+        raise ValueError(
+            f"Department '{department_code}' "
+            f"does not exist in the database."
         )
 
-        document.allowed_roles.extend(roles)
-        return
+    return department
 
-    if access_scope == "DEPARTMENT":
-        department_code = FOLDER_TO_DEPARTMENT.get(
-            category,
-            "GENERAL",
-        )
 
-        department = (
-            session.execute(
-                select(Department).where(
-                    Department.code == department_code
-                )
-            )
-            .scalar_one()
-        )
-
-        document.allowed_departments.append(
-            department
-        )
-
+# ============================================================
+# FILE REGISTRATION
+# ============================================================
 
 def register_file(
     session,
     path: Path,
 ) -> Document | None:
     """
-    Register one file in SQL.
+    Register or synchronize a single document.
 
-    Behaviour:
-    - New file       -> INSERT
-    - Same checksum  -> UPDATE last_seen_at
-    - Changed file   -> UPDATE metadata + version
+    New file:
+        PENDING_POLICY
+
+    Existing unchanged file:
+        Update last_seen_at only.
+
+    Existing changed file:
+        Preserve its ACL.
+        Mark it READY_FOR_INGESTION if a policy already exists.
+        Otherwise keep it PENDING_POLICY.
+
+    Reappeared deleted file:
+        Restore it and send it back through ingestion.
     """
+
+    # --------------------------------------------------------
+    # Basic validation
+    # --------------------------------------------------------
 
     if not path.is_file():
         return None
@@ -238,24 +229,53 @@ def register_file(
     if extension not in SUPPORTED_EXTENSIONS:
         return None
 
-    relative_path = path.relative_to(
-        DOCUMENT_ROOT
-    ).as_posix()
+    # --------------------------------------------------------
+    # Resolve relative path
+    # --------------------------------------------------------
+
+    try:
+        relative_path = path.relative_to(
+            DOCUMENT_ROOT
+        ).as_posix()
+
+    except ValueError:
+        print(
+            f"[SKIP] File outside document root: {path}"
+        )
+        return None
 
     parts = Path(relative_path).parts
 
     if not parts:
         return None
 
+    # First directory is treated as category.
     category = parts[0].lower()
 
     if category not in FOLDER_TO_DEPARTMENT:
         print(
-            f"[SKIP] Unknown document category: {relative_path}"
+            f"[SKIP] Unknown document category: "
+            f"{relative_path}"
         )
         return None
 
+    # --------------------------------------------------------
+    # Calculate current file information
+    # --------------------------------------------------------
+
     checksum = calculate_sha256(path)
+
+    file_size = path.stat().st_size
+
+    source_type = get_source_type(path)
+
+    title = get_title(path)
+
+    now = utc_now()
+
+    # --------------------------------------------------------
+    # Find existing document
+    # --------------------------------------------------------
 
     document = (
         session.execute(
@@ -266,99 +286,169 @@ def register_file(
         .scalar_one_or_none()
     )
 
-    if document is None:
-        department_code = FOLDER_TO_DEPARTMENT[
-            category
-        ]
+    # ========================================================
+    # NEW FILE
+    # ========================================================
 
-        department = (
-            session.execute(
-                select(Department).where(
-                    Department.code == department_code
-                )
-            )
-            .scalar_one()
+    if document is None:
+
+        owner_department = get_owner_department(
+            session,
+            category,
         )
 
         document = Document(
             document_key=build_document_key(
                 relative_path
             ),
-            title=get_title(path),
+            title=title,
             filename=path.name,
             relative_path=relative_path,
-            source_type=get_source_type(path),
-            owner_department=department,
+            source_type=source_type,
+
+            owner_department=owner_department,
+
+            # Newly discovered files do not get trusted
+            # access permissions automatically.
+            classification="INTERNAL",
+            access_scope=ACCESS_PENDING,
+
             checksum=checksum,
-            file_size=path.stat().st_size,
-            status="DISCOVERED",
+            file_size=file_size,
+
+            status=STATUS_PENDING_POLICY,
+
             version=1,
-            last_seen_at=utc_now(),
+
+            last_seen_at=now,
         )
 
         session.add(document)
         session.flush()
 
-        apply_document_acl(
-            session,
-            document,
-            category,
-        )
-
         print(
-            f"[NEW] {relative_path}"
+            f"[NEW] {relative_path} "
+            f"→ {STATUS_PENDING_POLICY}"
         )
 
         return document
 
-    # Existing file
+    # ========================================================
+    # EXISTING FILE - UNCHANGED
+    # ========================================================
+
     if document.checksum == checksum:
-        document.last_seen_at = utc_now()
 
-        print(
-            f"[UNCHANGED] {relative_path}"
-        )
+        # If a previously deleted file reappears,
+        # it must become active again.
+        if document.status == STATUS_DELETED:
+
+            if document.access_scope == ACCESS_PENDING:
+                document.status = STATUS_PENDING_POLICY
+            else:
+                document.status = STATUS_READY_FOR_INGESTION
+
+            print(
+                f"[RESTORED] {relative_path} "
+                f"→ {document.status}"
+            )
+
+        else:
+
+            print(
+                f"[UNCHANGED] {relative_path}"
+            )
+
+        document.last_seen_at = now
 
         return document
 
-    # File changed
-    document.title = get_title(path)
+    # ========================================================
+    # EXISTING FILE - CONTENT CHANGED
+    # ========================================================
+
+    document.title = title
+
     document.filename = path.name
-    document.source_type = get_source_type(path)
+
+    document.source_type = source_type
+
     document.checksum = checksum
-    document.file_size = path.stat().st_size
+
+    document.file_size = file_size
+
     document.version += 1
-    document.status = "DISCOVERED"
-    document.last_seen_at = utc_now()
 
-    apply_document_acl(
-        session,
-        document,
-        category,
-    )
+    document.last_seen_at = now
 
-    print(
-        f"[UPDATED] {relative_path} "
-        f"(v{document.version})"
-    )
+    # --------------------------------------------------------
+    # IMPORTANT:
+    #
+    # The existing ACL remains unchanged.
+    #
+    # If the document already has an approved policy,
+    # it can go directly back to ingestion.
+    #
+    # If the document somehow still has PENDING access,
+    # do not let the changed file bypass policy review.
+    # --------------------------------------------------------
+
+    if document.access_scope == ACCESS_PENDING:
+
+        document.status = STATUS_PENDING_POLICY
+
+        print(
+            f"[UPDATED] {relative_path} "
+            f"(v{document.version}) "
+            f"→ {STATUS_PENDING_POLICY}"
+        )
+
+    else:
+
+        document.status = STATUS_READY_FOR_INGESTION
+
+        print(
+            f"[UPDATED] {relative_path} "
+            f"(v{document.version}) "
+            f"→ {STATUS_READY_FOR_INGESTION}"
+        )
 
     return document
 
 
+# ============================================================
+# DIRECTORY SYNCHRONIZATION
+# ============================================================
+
 def sync_document_directory() -> None:
     """
-    Scan the complete document directory and synchronize SQL state.
+    Scan data/documents/ and synchronize the SQL document registry.
+
+    Responsibilities:
+
+        filesystem
+            ↓
+        document discovery
+            ↓
+        SQL registration/update
+            ↓
+        deletion detection
     """
 
     if not DOCUMENT_ROOT.exists():
+
         raise FileNotFoundError(
-            f"Document directory does not exist: "
+            "Document directory does not exist: "
             f"{DOCUMENT_ROOT}"
         )
 
     seen_paths: set[str] = set()
 
     with SessionLocal() as session:
+
+        # ----------------------------------------------------
+        # Discover files
+        # ----------------------------------------------------
 
         for path in DOCUMENT_ROOT.rglob("*"):
 
@@ -379,7 +469,10 @@ def sync_document_directory() -> None:
                 path,
             )
 
-        # Mark deleted/missing files.
+        # ----------------------------------------------------
+        # Detect deleted files
+        # ----------------------------------------------------
+
         documents = (
             session.execute(
                 select(Document)
@@ -390,18 +483,26 @@ def sync_document_directory() -> None:
 
         for document in documents:
 
-            if document.status == "DELETED":
-                continue
+            if (
+                document.relative_path
+                not in seen_paths
+            ):
 
-            if document.relative_path not in seen_paths:
+                if document.status != STATUS_DELETED:
 
-                document.status = "DELETED"
+                    document.status = STATUS_DELETED
 
-                print(
-                    f"[DELETED] "
-                    f"{document.relative_path}"
-                )
+                    print(
+                        f"[DELETED] "
+                        f"{document.relative_path}"
+                    )
+
+        # ----------------------------------------------------
+        # Persist all changes
+        # ----------------------------------------------------
 
         session.commit()
 
-    print("Document directory synchronization complete.")
+    print(
+        "Document directory synchronization complete."
+    )

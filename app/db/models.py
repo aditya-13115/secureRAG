@@ -346,11 +346,13 @@ class Document(Base):
         default="INTERNAL",
     )
 
+    # PENDING until an admin explicitly assigns a policy.
+    # Final values:
     # PUBLIC / DEPARTMENT / ROLE / USER
     access_scope: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default="DEPARTMENT",
+        default="PENDING",
         index=True,
     )
 
@@ -366,11 +368,12 @@ class Document(Base):
         default=0,
     )
 
-    # DISCOVERED / INDEXING / INDEXED / FAILED / DELETED
+    # PENDING_POLICY / READY_FOR_INGESTION
+    # INDEXING / INDEXED / FAILED / DELETED
     status: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default="DISCOVERED",
+        default="PENDING_POLICY",
         index=True,
     )
 
