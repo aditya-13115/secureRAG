@@ -1,0 +1,157 @@
+secureRAG
+├── app
+│   ├── api
+│   │   ├── __init__.py
+│   │   ├── chat.py
+│   │   ├── documents.py
+│   │   └── health.py
+│   ├── auth
+│   │   ├── __init__.py
+│   │   ├── acl.py
+│   │   └── users.py
+│   ├── citations
+│   │   ├── __init__.py
+│   │   └── builder.py
+│   ├── db
+│   │   ├── __init__.py
+│   │   ├── database.py
+│   │   ├── models.py
+│   │   └── seed.py
+│   ├── ingestion
+│   │   ├── __init__.py
+│   │   ├── chunking.py
+│   │   ├── file_registry.py
+│   │   ├── loaders.py
+│   │   ├── metadata.py
+│   │   └── watcher.py
+│   ├── llm
+│   │   ├── __init__.py
+│   │   ├── client.py
+│   │   ├── config.py
+│   │   ├── key_pool.py
+│   │   ├── prompts.py
+│   │   └── service.py
+│   ├── retrieval
+│   │   ├── __init__.py
+│   │   ├── bm25.py
+│   │   ├── embeddings.py
+│   │   ├── hybrid.py
+│   │   ├── indexer.py
+│   │   ├── retriever.py
+│   │   ├── semantic.py
+│   │   ├── types.py
+│   │   └── vector_store.py
+│   ├── schemas
+│   │   ├── __init__.py
+│   │   ├── chat.py
+│   │   └── documents.py
+│   ├── __init__.py
+│   └── main.py
+├── data
+│   ├── chroma
+│   │   ├── 008d66d2-6824-4b88-b556-b2ae5aef760c
+│   │   │   ├── data_level0.bin
+│   │   │   ├── header.bin
+│   │   │   ├── length.bin
+│   │   │   └── link_lists.bin
+│   │   └── chroma.sqlite3
+│   ├── documents
+│   │   ├── finance
+│   │   │   ├── board_finance_update_june_2026.txt
+│   │   │   ├── FY2026_budget_and_variance.xlsx
+│   │   │   ├── month_end_close_checklist.md
+│   │   │   ├── Q2_financial_review.pdf
+│   │   │   ├── rolling_cashflow_forecast.csv
+│   │   │   └── vendor_payment_policy.docx
+│   │   ├── hr
+│   │   │   ├── benefits_overview_2026.csv
+│   │   │   ├── compensation_framework_and_bands.xlsx
+│   │   │   ├── employee_handbook.pdf
+│   │   │   ├── headcount_and_attrition_report_q2.txt
+│   │   │   ├── leave_and_attendance_policy.md
+│   │   │   └── performance_review_cycle.docx
+│   │   ├── management
+│   │   │   ├── company_okrs_q3_2026.xlsx
+│   │   │   ├── decision_log_q3.docx
+│   │   │   ├── leadership_operating_review.pdf
+│   │   │   ├── management_principles.md
+│   │   │   ├── org_structure.csv
+│   │   │   └── q3_priorities.txt
+│   │   ├── marketing
+│   │   │   ├── brand_guidelines.docx
+│   │   │   ├── campaign_performance_august_2026.xlsx
+│   │   │   ├── current_campaigns.md
+│   │   │   ├── customer_acquisition_report_august.txt
+│   │   │   ├── q3_campaign_brief.pdf
+│   │   │   └── social_media_calendar_september_2026.csv
+│   │   ├── public
+│   │   │   ├── company_overview.pdf
+│   │   │   ├── current_company_announcements.txt
+│   │   │   ├── employee_faq.md
+│   │   │   ├── employee_quick_start.docx
+│   │   │   ├── holiday_calendar_2026.xlsx
+│   │   │   └── office_locations.csv
+│   │   └── technology
+│   │       ├── coding_standards.md
+│   │       ├── engineering_architecture.pdf
+│   │       ├── incident_response_runbook.docx
+│   │       ├── infrastructure_inventory.txt
+│   │       ├── service_catalog_and_ownership.xlsx
+│   │       └── technology_roadmap_h2_2026.csv
+│   ├── bm25.sqlite3
+│   ├── bm25.sqlite3-shm
+│   ├── bm25.sqlite3-wal
+│   └── CORPUS_MANIFEST.json
+├── frontend
+│   ├── public
+│   │   ├── favicon.svg
+│   │   └── icons.svg
+│   ├── src
+│   │   ├── assets
+│   │   │   ├── hero.png
+│   │   │   ├── react.svg
+│   │   │   └── vite.svg
+│   │   ├── components
+│   │   │   ├── AccessPanel.tsx
+│   │   │   ├── ChatComposer.tsx
+│   │   │   ├── ChatMessage.tsx
+│   │   │   ├── SourceCard.tsx
+│   │   │   └── TopBar.tsx
+│   │   ├── data
+│   │   │   └── demoUsers.ts
+│   │   ├── lib
+│   │   │   └── api.ts
+│   │   ├── types
+│   │   │   └── index.ts
+│   │   ├── App.css
+│   │   ├── App.tsx
+│   │   ├── index.css
+│   │   └── main.tsx
+│   ├── .env
+│   ├── .gitignore
+│   ├── .oxlintrc.json
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── README.md
+│   ├── tsconfig.app.json
+│   ├── tsconfig.json
+│   ├── tsconfig.node.json
+│   └── vite.config.ts
+├── scripts
+│   ├── apply_policies.py
+│   ├── test_chat.py
+│   └── test_retrieval.py
+├── tests
+│   ├── test_acl.py
+│   ├── test_chat.py
+│   ├── test_ingestion.py
+│   └── test_retrieval.py
+├── .env
+├── .env.example
+├── .gitignore
+├── .python-version
+├── monke_second_brain.db
+├── pyproject.toml
+├── README.md
+└── uv.lock
