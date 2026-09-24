@@ -17,7 +17,10 @@ dist/
 .coverage
 .coverage.*
 htmlcov/
+
+# Test / tooling caches
 .pytest_cache/
+.cache/
 .mypy_cache/
 .ruff_cache/
 .tox/
@@ -25,6 +28,7 @@ htmlcov/
 
 # Jupyter
 .ipynb_checkpoints/
+
 
 # =========================
 # Virtual Environments
@@ -37,25 +41,27 @@ ENV/
 env.bak/
 venv.bak/
 
+
 # =========================
 # uv
 # =========================
 
-# uv cache
 .uv/
 
-# uv virtual environment
-# (covered above)
-# .venv/
 
 # =========================
 # Environment Variables
 # =========================
 
-# Ignore only the exact .env file
+# Ignore only the real local environment file
 .env
 
-# Keep .env.example, .env.local, .env.development, etc.
+# Keep:
+# .env.example
+# .env.local
+# .env.development
+
+
 # =========================
 # Node / Vite
 # =========================
@@ -66,7 +72,7 @@ node_modules/
 .yarn/
 .yarn-cache/
 
-# Vite build output
+# Vite output
 dist/
 .vite/
 
@@ -76,18 +82,23 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Optional Node tooling caches
+# Node tooling caches
 .eslintcache
 .stylelintcache
+
+# TypeScript
+*.tsbuildinfo
+
 
 # =========================
 # Frontend Environment
 # =========================
 
-# Vite local env files are NOT ignored intentionally
+# Intentionally NOT ignoring:
 # .env.local
 # .env.development
 # .env.production
+
 
 # =========================
 # IDE / Editors
@@ -97,6 +108,7 @@ pnpm-debug.log*
 .idea/
 *.iml
 
+
 # =========================
 # OS Files
 # =========================
@@ -104,6 +116,7 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 Desktop.ini
+
 
 # =========================
 # Temporary / Logs
@@ -116,22 +129,22 @@ Desktop.ini
 *.swo
 *~
 
-# =========================
-# Test / Tool Cache
-# =========================
-
-.pytest_cache/
-.cache/
-.mypy_cache/
-.ruff_cache/
 
 # =========================
-# TypeScript
+# SecureRAG Generated Indexes
 # =========================
 
-*.tsbuildinfo
+# Chroma vector database/index
+data/chroma/
 
-
-monke_second_brain.db
-
+# BM25 derived search index
 data/bm25.sqlite3
+
+# SQLite WAL runtime files
+data/bm25.sqlite3-shm
+data/bm25.sqlite3-wal
+
+# Do NOT ignore:
+# monke_second_brain.db
+# data/documents/
+# data/CORPUS_MANIFEST.json

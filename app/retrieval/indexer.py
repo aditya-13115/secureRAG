@@ -124,12 +124,27 @@ def index_document(
             for chunk in chunks
         ]
 
+        # Include document identity in the embedding input.
+        # The stored/retrieved text remains the original chunk,
+        # but queries such as "compensation framework" can now
+        # semantically match a document whose filename/title carries
+        # that concept even when the exact word is not repeated in
+        # every spreadsheet chunk.
+        embedding_inputs = [
+            (
+                f"Document title: {document.title}\n"
+                f"Filename: {document.filename}\n"
+                f"Content:\n{text}"
+            )
+            for text in texts
+        ]
+
         # ----------------------------------
         # Embeddings
         # ----------------------------------
         embeddings = (
             embedding_model.embed_documents(
-                texts
+                embedding_inputs
             )
         )
 

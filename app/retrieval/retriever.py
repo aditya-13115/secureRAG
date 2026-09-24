@@ -138,6 +138,7 @@ class SecureRetriever:
         top_k: int = 10,
         candidate_k: int = 30,
         rrf_k: int = 60,
+        preferred_document_ids: list[int] | None = None,
     ) -> list[SearchResult]:
         """
         The only retrieval method the rest of the application needs.
@@ -157,6 +158,22 @@ class SecureRetriever:
 
         if not allowed_document_ids:
             return []
+
+        # Optional relevance narrowing for targeted queries.
+        # Authorization is always applied first; preferred IDs can
+        # never expand the user's access set.
+        if preferred_document_ids:
+            preferred = set(
+                preferred_document_ids
+            )
+            allowed_document_ids = [
+                document_id
+                for document_id in allowed_document_ids
+                if document_id in preferred
+            ]
+
+            if not allowed_document_ids:
+                return []
 
         return self.hybrid_retriever.search(
             query=query,
