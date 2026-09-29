@@ -14,6 +14,7 @@ secureRAG
 │   │   └── builder.py
 │   ├── db
 │   │   ├── __init__.py
+│   │   ├── audit.py
 │   │   ├── database.py
 │   │   ├── models.py
 │   │   └── seed.py
@@ -22,6 +23,7 @@ secureRAG
 │   │   ├── chunking.py
 │   │   ├── file_registry.py
 │   │   ├── loaders.py
+│   │   ├── manager.py
 │   │   ├── metadata.py
 │   │   └── watcher.py
 │   ├── llm
@@ -102,6 +104,8 @@ secureRAG
 │   ├── bm25.sqlite3-shm
 │   ├── bm25.sqlite3-wal
 │   └── CORPUS_MANIFEST.json
+├── docs
+│   └── ADMIN_DOCUMENT_CONTROL.md
 ├── frontend
 │   ├── public
 │   │   ├── favicon.svg
@@ -113,6 +117,7 @@ secureRAG
 │   │   │   └── vite.svg
 │   │   ├── components
 │   │   │   ├── AccessPanel.tsx
+│   │   │   ├── AdminConsole.tsx
 │   │   │   ├── ChatComposer.tsx
 │   │   │   ├── ChatMessage.tsx
 │   │   │   ├── SourceCard.tsx
@@ -130,6 +135,7 @@ secureRAG
 │   ├── .env
 │   ├── .gitignore
 │   ├── .oxlintrc.json
+│   ├── index.css
 │   ├── index.html
 │   ├── package-lock.json
 │   ├── package.json
@@ -144,6 +150,7 @@ secureRAG
 │   └── test_retrieval.py
 ├── tests
 │   ├── test_acl.py
+│   ├── test_admin_api.py
 │   ├── test_chat.py
 │   ├── test_ingestion.py
 │   └── test_retrieval.py

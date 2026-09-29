@@ -1,4 +1,4 @@
-# Monk-E Second Brain — SecureRAG
+# Monk-E Second Brain : SecureRAG
 
 Monk-E Second Brain is a permission-aware enterprise RAG application that lets employees ask questions over company documents while ensuring that the retrieval layer only searches documents the current user is authorized to access.
 
@@ -20,6 +20,10 @@ This repository currently contains a working prototype with:
 - Citation-aware answers
 - React + TypeScript + Vite + Tailwind frontend
 - Demo role switching to demonstrate permission boundaries
+- Admin-only Policy & Document Control console
+- File upload, policy approval, re-index and delete workflows
+- Document metadata, ACL and audit visibility
+- Background ingestion worker for chunking, embeddings, Chroma and BM25 indexing
 
 Chat history/memory is intentionally not implemented at this stage. Each chat request is stateless.
 
@@ -82,47 +86,56 @@ This prevents unauthorized document chunks from becoming retrieval candidates in
 ```mermaid
 flowchart TB
     U[Employee / Demo User] --> FE[React + TypeScript Frontend]
-    FE -->|POST /api/chat + X-User-Email| API[FastAPI Backend]
+
+    FE -->|Chat + X-User-Email| API[FastAPI Backend]
+    FE -->|Admin actions + X-User-Email| DOCAPI[Document Control API]
 
     API --> AUTH[Identity + ACL Layer]
+    DOCAPI --> AUTH
     AUTH --> DB[(SQLite Application DB)]
 
+    DOCAPI -->|Upload / Policy / Reindex / Delete| MGR[Document Manager]
+    MGR --> WORKER[Background Index Worker]
+    WORKER --> LOAD[Load + Chunk + Embed]
+    LOAD --> CH[Chroma]
+    LOAD --> FTS[SQLite FTS5 BM25]
+
     AUTH -->|Authorized Document IDs| RET[Secure Retriever]
-
-    RET --> SEM[Semantic Retriever]
-    RET --> BM25[BM25 Retriever]
-
-    SEM --> EMB[SentenceTransformer]
-    EMB --> CH[(Chroma Vector Store)]
-
-    BM25 --> FTS[(SQLite FTS5 BM25 Index)]
-
-    SEM --> RRF[Weighted RRF<br/>65% Semantic + 35% BM25]
-    BM25 --> RRF
+    RET --> CH
+    RET --> FTS
+    CH --> RRF[Weighted RRF<br/>65% Semantic + 35% BM25]
+    FTS --> RRF
 
     RRF --> CTX[Citation-aware Context Builder]
     CTX --> LLM[Groq LLM]
-
     LLM --> RESP[Answer + Citations]
     RESP --> FE
+
+    AUTH --> AUDIT[(Audit Log)]
+    DOCAPI --> AUDIT
 ```
 
 ### 2.2 Ingestion architecture
 
 ```mermaid
 flowchart LR
-    FS[data/documents] --> W[Watchdog / File Registry]
-    W --> SQL[(Application DB)]
+    UP[Admin Upload] --> M[Document Manager]
+    FS[Direct filesystem changes] --> W[Optional Watcher / File Registry]
+    W --> M
+    M --> SQL[(Application DB)]
 
-    SQL -->|Policy approved| I[Indexing Pipeline]
-    I --> L[Format Loader]
+    SQL -->|PENDING_POLICY| ADMIN[Admin Policy Approval]
+    ADMIN -->|READY_FOR_INGESTION| Q[Background Job Queue]
+    Q --> L[Format Loader]
     L --> B[Source-aware Loaded Blocks]
     B --> C[Chunker]
 
     C --> E[Embedding Model]
     E --> V[(Chroma)]
-
     C --> K[(SQLite FTS5 BM25)]
+
+    V --> IDX[INDEXED]
+    K --> IDX
 ```
 
 ### 2.3 Secure query architecture
@@ -153,6 +166,40 @@ sequenceDiagram
     Groq-->>API: Grounded answer
     API-->>Frontend: Answer + citations
     Frontend-->>User: Render response
+```
+
+### 2.4 Admin document-control workflow
+
+```mermaid
+sequenceDiagram
+    participant Admin as CEO / CTO / COFOUNDER
+    participant FE as Admin Console
+    participant API as FastAPI
+    participant DB as SQLite + ACL
+    participant W as Background Worker
+    participant IDX as Chroma + BM25
+
+    Admin->>FE: Upload file
+    FE->>API: POST /api/documents/upload
+    API->>DB: Register as PENDING_POLICY
+    API-->>FE: Document metadata
+
+    Admin->>FE: Approve classification + ACL
+    FE->>API: PATCH /api/documents/{id}/policy
+    API->>DB: Save policy + READY_FOR_INGESTION
+    API->>W: Queue indexing job
+    API-->>FE: Updated policy/status
+
+    W->>W: Load + chunk + embed
+    W->>IDX: Replace document indexes
+    W->>DB: Mark INDEXED
+
+    Admin->>FE: Delete document
+    FE->>API: DELETE /api/documents/{id}
+    API->>DB: Mark DELETED immediately
+    API->>W: Queue cleanup
+    API-->>FE: Access revoked
+    W->>IDX: Remove document from indexes
 ```
 
 ---
@@ -189,6 +236,25 @@ The implementation deliberately keeps document ownership separate from document 
 
 The LLM does not make authorization decisions. The LLM receives only the chunks that survived the ACL-aware retrieval process.
 
+### Admin / policy control access
+
+Only these roles can use the Policy & Document Control console and admin APIs:
+
+```text
+CEO
+CTO
+COFOUNDER
+```
+
+The restriction is enforced at both layers:
+
+```text
+Frontend → access-denied message for non-admin demo roles
+Backend  → HTTP 403 from protected admin endpoints
+```
+
+Admin access is for document management and policy administration. It does not bypass normal document ACLs for chat retrieval.
+
 ---
 
 ## 4. Current data and indexing state
@@ -213,7 +279,7 @@ The application metadata, user data and ACL state are stored in:
 monke_second_brain.db
 ```
 
-The SQL database remains the security/source-of-truth database. Chroma and the BM25 database are search indexes.
+The SQL database remains the security/source-of-truth database and also stores document lifecycle and audit metadata. Chroma and the BM25 database are search indexes.
 
 ---
 
@@ -381,7 +447,7 @@ The frontend is a React + TypeScript + Vite application with Tailwind CSS and Lu
 
 The UI is designed as an internal enterprise knowledge console rather than a generic consumer chatbot.
 
-The demo identity panel allows you to switch between the seeded roles. The selected role automatically changes the associated demo user.
+The demo identity panel allows you to switch between the seeded roles. The selected role automatically changes the associated demo user. Authorized roles also see the Policy & Document Control console for document administration.
 
 For demonstration, changing the identity changes the `X-User-Email` header sent to the backend. The actual authorization decision is still performed by the backend ACL layer.
 
@@ -407,7 +473,134 @@ Finance evidence is retrieved
 
 ---
 
-## 10. Project structure
+## 10. Admin Policy & Document Control
+
+The prototype includes an admin-only document-control console that sits alongside the existing chat/RAG path without changing the ACL-first retrieval contract.
+
+### 10.1 Admin roles
+
+Only these seeded roles can use the admin APIs:
+
+```text
+CEO
+CTO
+COFOUNDER
+```
+
+Other demo roles receive an in-app access-denied message. The backend independently returns HTTP `403` for protected admin endpoints.
+
+### 10.2 Upload → policy → background indexing
+
+```text
+Admin upload
+    ↓
+PENDING_POLICY
+    ↓
+Admin approves classification + ACL
+    ↓
+READY_FOR_INGESTION
+    ↓
+Background worker
+    ├── loader
+    ├── source-aware chunking
+    ├── embeddings → Chroma
+    └── text → BM25
+    ↓
+INDEXED
+    ↓
+Available to chat according to ACL
+```
+
+A new upload is deliberately not searchable before policy approval.
+
+### 10.3 Admin API surface
+
+```text
+GET    /api/documents
+GET    /api/documents/{document_id}
+GET    /api/documents/policy-options
+GET    /api/documents/ingestion/status
+
+POST   /api/documents/upload
+PATCH  /api/documents/{document_id}/policy
+POST   /api/documents/{document_id}/reindex
+DELETE /api/documents/{document_id}
+```
+
+These endpoints use the existing `X-User-Email` identity mechanism and the backend policy-admin authorization dependency.
+
+### 10.4 What the admin console shows
+
+For each document, the console can show:
+
+- filename and relative filesystem path
+- file existence
+- source type
+- file size
+- SHA-256 checksum
+- version and lifecycle status
+- owner department
+- classification
+- access scope
+- allowed roles, departments and users
+- who registered/uploaded it
+- who last changed its policy
+- policy-change timestamp
+- indexing timestamp
+- deletion metadata
+- audit history
+
+### 10.5 Background processing
+
+Uploads, policy approvals and re-index requests return without waiting for parsing, chunking, embedding or index writes to finish.
+
+The prototype uses a single in-process background worker and queue. Heavy indexing work is therefore kept outside the FastAPI request path while the existing Chroma and BM25 interfaces remain unchanged.
+
+The worker checks document status/version before finalizing indexing. If a file, policy or deletion changes while an older job is still running, stale search output is removed rather than published as the current version.
+
+### 10.6 Delete semantics
+
+Deletion is deliberately two-stage:
+
+```text
+SQL status → DELETED
+        ↓
+retrieval access revoked immediately
+        ↓
+background cleanup
+        ↓
+physical file + Chroma + BM25 cleanup
+```
+
+If cleanup fails, access remains revoked and the failure is recorded in the audit trail.
+
+### 10.7 Audit events
+
+The document-control workflow records lifecycle events such as:
+
+```text
+REGISTERED
+UPLOADED
+POLICY_UPDATED
+REINDEX_REQUESTED
+FILE_UPDATED
+DELETE_REQUESTED
+DELETE_FILE_FAILED
+FILE_DELETED
+RESTORED_PENDING_POLICY
+```
+
+### 10.8 Watcher is optional
+
+The existing filesystem watcher is still available for direct file changes under `data/documents/`. It is not required for uploads, policy approvals, re-indexing or deletes performed through the admin console.
+
+### 10.9 Production direction
+
+The current worker is intentionally local and in-process. A production deployment should preserve the same job contract but move execution to a durable external queue/worker system so jobs survive process restarts and can scale independently.
+
+---
+
+## 11. Project structure
 
 ```text
 secureRAG/
@@ -430,7 +623,8 @@ secureRAG/
 │   │   ├── __init__.py
 │   │   ├── database.py
 │   │   ├── models.py
-│   │   └── seed.py
+│   │   ├── seed.py
+│   │   └── audit.py
 │   │
 │   ├── ingestion/
 │   │   ├── __init__.py
@@ -438,6 +632,7 @@ secureRAG/
 │   │   ├── metadata.py
 │   │   ├── chunking.py
 │   │   ├── file_registry.py
+│   │   ├── manager.py
 │   │   └── watcher.py
 │   │
 │   ├── retrieval/
@@ -481,6 +676,18 @@ secureRAG/
 │
 ├── frontend/
 │   ├── src/
+│   │   ├── components/
+│   │   │   ├── AccessPanel.tsx
+│   │   │   ├── AdminConsole.tsx
+│   │   │   ├── ChatComposer.tsx
+│   │   │   ├── ChatMessage.tsx
+│   │   │   ├── SourceCard.tsx
+│   │   │   └── TopBar.tsx
+│   │   ├── data/
+│   │   ├── lib/
+│   │   ├── types/
+│   │   ├── App.tsx
+│   │   └── main.tsx
 │   ├── public/
 │   ├── package.json
 │   └── vite.config.ts
@@ -492,9 +699,11 @@ secureRAG/
 ├── tests/
 │   ├── test_acl.py
 │   ├── test_ingestion.py
-│   └── test_retrieval.py
+│   ├── test_retrieval.py
+│   └── test_admin_api.py
 │
 ├── docs/
+│   └── ADMIN_DOCUMENT_CONTROL.md
 ├── .env
 ├── .env.example
 ├── .gitignore
@@ -503,11 +712,22 @@ secureRAG/
 └── uv.lock
 ```
 
-Generated local databases and indexes should not be committed to Git.
+For this prototype, `monke_second_brain.db` is intentionally tracked so the seeded users, documents and ACL state travel with the demo.
+
+Generated search indexes are intentionally not tracked:
+
+```text
+data/chroma/
+data/bm25.sqlite3
+data/bm25.sqlite3-shm
+data/bm25.sqlite3-wal
+```
+
+They can be rebuilt by the indexing pipeline.
 
 ---
 
-## 11. Requirements
+## 12. Requirements
 
 ### Backend
 
@@ -519,6 +739,7 @@ Generated local databases and indexes should not be committed to Git.
 - FastAPI
 - SQLAlchemy
 - Groq API key(s)
+- python-multipart for admin file uploads
 
 ### Frontend
 
@@ -527,7 +748,7 @@ Generated local databases and indexes should not be committed to Git.
 
 ---
 
-# 12. Setup
+# 13. Setup
 
 ## Clone the project
 
@@ -548,7 +769,7 @@ The project uses the existing `pyproject.toml` and `uv.lock`.
 
 ---
 
-## 13. Configure environment variables
+## 14. Configure environment variables
 
 Copy the example environment file:
 
@@ -575,7 +796,7 @@ Do not commit the real `.env` file.
 
 ---
 
-# 14. Database initialization and seeding
+# 15. Database initialization and seeding
 
 The FastAPI startup path initializes the SQL database.
 
@@ -601,7 +822,7 @@ employee@monke.ai
 
 ---
 
-# 15. Start the backend API
+# 16. Start the backend API
 
 From the repository root:
 
@@ -623,37 +844,25 @@ http://127.0.0.1:8000/docs
 
 ---
 
-# 16. Start the document watcher
+# 17. Optional document watcher
 
-The filesystem watcher is a prototype convenience that detects document changes under `data/documents/` and updates the document registry.
+The filesystem watcher is now an **optional** development convenience. It detects direct file changes under `data/documents/` and updates the SQL document registry.
 
-Run it in a separate terminal from the repository root:
-
-```powershell
-uv run python -m app.ingestion.watcher
-```
-
-Typical development setup therefore uses two backend terminals:
-
-### Terminal 1 — API
-
-```powershell
-uv run uvicorn app.main:app --reload
-```
-
-### Terminal 2 — Watcher
+Run it when you change the corpus directly on disk:
 
 ```powershell
 uv run python -m app.ingestion.watcher
 ```
 
-The watcher should remain running if you want new or modified files to be automatically registered.
+You do **not** need the watcher for uploads, policy approvals, re-indexing or deletes performed through the admin console. Those operations go directly through the API and background worker.
 
 ---
 
-# 17. Index documents
+# 18. Index documents
 
-After documents are registered and their access policies are approved, run:
+For normal admin-console uploads, indexing starts automatically after policy approval.
+
+For an explicit bulk/fresh indexing run, use:
 
 ```powershell
 uv run python -m app.retrieval.indexer
@@ -693,7 +902,7 @@ The indexer displays progress using `tqdm` and reports:
 
 ---
 
-# 18. Run backend tests
+# 19. Run backend tests
 
 Run the complete test suite:
 
@@ -717,13 +926,16 @@ Run ingestion tests:
 
 ```powershell
 uv run pytest tests/test_ingestion.py -v
+uv run pytest tests/test_admin_api.py -v
 ```
 
 The retrieval suite covers weighted RRF, role access, public access, global access, retrieval behavior, citations and authorization leakage checks.
 
+The admin API suite covers protected admin access, upload/policy/delete behavior, audit events and document lifecycle transitions.
+
 ---
 
-# 19. Manual retrieval test
+# 20. Manual retrieval test
 
 Run:
 
@@ -745,7 +957,7 @@ The test prints:
 
 ---
 
-# 20. Manual end-to-end RAG test
+# 21. Manual end-to-end RAG test
 
 Run:
 
@@ -776,7 +988,7 @@ Answer + citations
 
 ---
 
-# 21. Start the frontend
+# 22. Start the frontend
 
 Go into the frontend directory:
 
@@ -812,7 +1024,7 @@ The FastAPI backend must be running at the same time.
 
 ---
 
-# 22. Typical development workflow
+# 23. Typical development workflow
 
 Use three terminals.
 
@@ -843,7 +1055,7 @@ uv run python -m app.retrieval.indexer
 
 ---
 
-# 23. Demo workflow
+# 24. Demo workflow
 
 A simple demonstration of the security model is:
 
@@ -905,6 +1117,20 @@ What is the FY2026 budget variance?
 
 The finance document is outside the employee's authorized set and therefore is not retrieved.
 
+### Admin console
+
+Select one of the policy-admin roles:
+
+```text
+CEO
+CTO
+COFOUNDER
+```
+
+Open **Policy & Document Control** to upload a document, approve its policy, inspect metadata/audit history, re-index it, or delete it. Heavy ingestion work runs in the background after approval.
+
+Select a non-admin role such as `ENGINEER` and open the same console. The frontend should show an access-denied message, and the backend independently returns HTTP `403` for admin requests.
+
 ### CEO
 
 Select:
@@ -917,7 +1143,7 @@ The CEO has global access in the prototype and can retrieve across the full inde
 
 ---
 
-# 24. API example
+# 25. API example
 
 The chat API is:
 
@@ -956,7 +1182,36 @@ The response contains:
 
 ---
 
-# 25. Important implementation decisions
+# 26. Document control API example
+
+Admin endpoints use the same prototype identity header:
+
+```text
+X-User-Email: ceo@monke.ai
+```
+
+List documents:
+
+```powershell
+curl.exe -X GET "http://127.0.0.1:8000/api/documents" `
+  -H "X-User-Email: ceo@monke.ai"
+```
+
+Upload a file with multipart form-data:
+
+```powershell
+curl.exe -X POST "http://127.0.0.1:8000/api/documents/upload" `
+  -H "X-User-Email: ceo@monke.ai" `
+  -F "file=@.\data\documents\technology\example.pdf"
+```
+
+The upload starts in `PENDING_POLICY` and is not searchable until its policy is approved.
+
+A non-admin identity receives HTTP `403` from protected document-control endpoints.
+
+---
+
+# 27. Important implementation decisions
 
 ## SQL is the authorization source of truth
 
@@ -1013,11 +1268,31 @@ The original architectural direction considered PostgreSQL, pgvector and object 
 
 ## Watchdog is a development convenience
 
-The filesystem watcher is useful for the local prototype. A production system would more naturally use an upload/object-storage plus queue/worker flow.
+The filesystem watcher is useful for direct local filesystem changes, but it is not required for admin-console uploads.
+
+## Admin policy is separate from chat authorization
+
+Only CEO, CTO and COFOUNDER can manage document policies. Admin access does not change the normal document ACL rules used by chat retrieval.
+
+## Policy approval happens before indexing
+
+Uploaded documents remain `PENDING_POLICY` until an administrator assigns classification and ACLs. This keeps unapproved content out of search indexes.
+
+## Background work is isolated from request handling
+
+Parsing, chunking, embedding and search-index writes run in an in-process background worker so heavy work does not block the FastAPI request path.
+
+## Delete revokes access first
+
+A deleted document becomes inaccessible in SQL before physical/index cleanup begins.
+
+## Audit history is part of the prototype
+
+Document registration, policy changes, re-index requests and deletion events are recorded for administrative visibility.
 
 ---
 
-# 26. Current limitations
+# 28. Current limitations
 
 The current prototype intentionally does not yet implement:
 
@@ -1026,17 +1301,16 @@ The current prototype intentionally does not yet implement:
 - a production identity provider / SSO
 - production object storage
 - production PostgreSQL deployment
-- background ingestion workers
+- a durable external job queue / worker system
 - document preview/download authorization endpoints
 - advanced reranking
-- production audit logging
 - production deployment configuration
 
 These are separate concerns from the core permission-aware retrieval path already implemented.
 
 ---
 
-# 27. Testing the security boundary
+# 29. Testing the security boundary
 
 The most important tests are authorization tests rather than only answer-quality tests.
 
@@ -1059,7 +1333,7 @@ A critical architectural rule is maintained throughout the implementation:
 
 ---
 
-# 28. Useful commands cheat sheet
+# 30. Useful commands cheat sheet
 
 ## Backend
 
@@ -1067,7 +1341,7 @@ A critical architectural rule is maintained throughout the implementation:
 uv sync
 uv run python -m app.db.seed
 uv run uvicorn app.main:app --reload
-uv run python -m app.ingestion.watcher
+uv run python -m app.ingestion.watcher        # optional: direct filesystem changes
 uv run python -m app.retrieval.indexer
 ```
 
