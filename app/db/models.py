@@ -291,6 +291,57 @@ class User(Base):
 
 
 # ============================================================
+# AUDIT LOG
+# ============================================================
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    document_id: Mapped[int | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    actor_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,
+    )
+
+    action: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        index=True,
+    )
+
+    details_json: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+        index=True,
+    )
+
+    document: Mapped["Document | None"] = relationship(
+        back_populates="audit_logs",
+    )
+
+    actor_user: Mapped["User | None"] = relationship()
+
+
+# ============================================================
 # DOCUMENT
 # ============================================================
 
@@ -396,6 +447,34 @@ class Document(Base):
         nullable=False,
     )
 
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,
+    )
+
+    policy_updated_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,
+    )
+
+    policy_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    deleted_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,
+    )
+
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     indexed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
@@ -423,6 +502,23 @@ class Document(Base):
     allowed_users: Mapped[List["User"]] = relationship(
         secondary=document_user_access,
         back_populates="explicitly_accessible_documents",
+    )
+
+    created_by_user: Mapped["User | None"] = relationship(
+        foreign_keys=[created_by_user_id],
+    )
+
+    policy_updated_by_user: Mapped["User | None"] = relationship(
+        foreign_keys=[policy_updated_by_user_id],
+    )
+
+    deleted_by_user: Mapped["User | None"] = relationship(
+        foreign_keys=[deleted_by_user_id],
+    )
+
+    audit_logs: Mapped[List["AuditLog"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
     )
 
     __table_args__ = (

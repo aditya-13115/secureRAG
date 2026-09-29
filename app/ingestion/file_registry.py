@@ -6,6 +6,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
+from app.db.audit import record_audit
 from app.db.database import SessionLocal
 from app.db.models import Department, Document
 
@@ -198,6 +199,9 @@ def get_owner_department(
 def register_file(
     session,
     path: Path,
+    *,
+    created_by_user_id: int | None = None,
+    actor_user_id: int | None = None,
 ) -> Document | None:
     """
     Register or synchronize a single document.
@@ -321,10 +325,23 @@ def register_file(
             version=1,
 
             last_seen_at=now,
+            created_by_user_id=created_by_user_id,
         )
 
         session.add(document)
         session.flush()
+
+        record_audit(
+            session,
+            action="REGISTERED",
+            actor_user_id=actor_user_id or created_by_user_id,
+            document_id=document.id,
+            details={
+                "relative_path": relative_path,
+                "status": STATUS_PENDING_POLICY,
+                "source": "upload" if created_by_user_id else "filesystem",
+            },
+        )
 
         print(
             f"[NEW] {relative_path} "
@@ -343,14 +360,40 @@ def register_file(
         # it must become active again.
         if document.status == STATUS_DELETED:
 
-            if document.access_scope == ACCESS_PENDING:
-                document.status = STATUS_PENDING_POLICY
-            else:
-                document.status = STATUS_READY_FOR_INGESTION
+            # A deleted file that reappears is treated as new content and must
+            # go through policy approval again, even if the path is unchanged.
+            # This prevents old permissions from being silently revived.
+            previous_version = document.version
+            document.allowed_departments.clear()
+            document.allowed_roles.clear()
+            document.allowed_users.clear()
+            document.classification = "INTERNAL"
+            document.access_scope = ACCESS_PENDING
+            document.status = STATUS_PENDING_POLICY
+            document.policy_updated_by_user_id = None
+            document.policy_updated_at = None
+            document.deleted_by_user_id = None
+            document.deleted_at = None
+
+            if actor_user_id is not None:
+                document.created_by_user_id = actor_user_id
+
+            record_audit(
+                session,
+                action="RESTORED_PENDING_POLICY",
+                actor_user_id=actor_user_id,
+                document_id=document.id,
+                details={
+                    "relative_path": relative_path,
+                    "reason": "deleted file reappeared",
+                    "previous_version": previous_version,
+                    "content_changed": False,
+                },
+            )
 
             print(
                 f"[RESTORED] {relative_path} "
-                f"→ {document.status}"
+                f"→ {STATUS_PENDING_POLICY}"
             )
 
         else:
@@ -367,34 +410,38 @@ def register_file(
     # EXISTING FILE - CONTENT CHANGED
     # ========================================================
 
+    was_deleted = document.status == STATUS_DELETED
+
     document.title = title
-
     document.filename = path.name
-
     document.source_type = source_type
-
     document.checksum = checksum
-
     document.file_size = file_size
-
     document.version += 1
-
     document.last_seen_at = now
 
-    # --------------------------------------------------------
-    # IMPORTANT:
-    #
-    # The existing ACL remains unchanged.
-    #
-    # If the document already has an approved policy,
-    # it can go directly back to ingestion.
-    #
-    # If the document somehow still has PENDING access,
-    # do not let the changed file bypass policy review.
-    # --------------------------------------------------------
+    if was_deleted:
+        # A deleted path can be reused for completely different content.
+        # Never inherit the previous file's ACL in that case.
+        document.allowed_departments.clear()
+        document.allowed_roles.clear()
+        document.allowed_users.clear()
+        document.classification = "INTERNAL"
+        document.access_scope = ACCESS_PENDING
+        document.status = STATUS_PENDING_POLICY
+        document.policy_updated_by_user_id = None
+        document.policy_updated_at = None
+        document.deleted_by_user_id = None
+        document.deleted_at = None
 
-    if document.access_scope == ACCESS_PENDING:
+        if actor_user_id is not None:
+            document.created_by_user_id = actor_user_id
 
+        print(
+            f"[RESTORED/REPLACED] {relative_path} "
+            f"(v{document.version}) → {STATUS_PENDING_POLICY}"
+        )
+    elif document.access_scope == ACCESS_PENDING:
         document.status = STATUS_PENDING_POLICY
 
         print(
@@ -402,9 +449,7 @@ def register_file(
             f"(v{document.version}) "
             f"→ {STATUS_PENDING_POLICY}"
         )
-
     else:
-
         document.status = STATUS_READY_FOR_INGESTION
 
         print(
@@ -412,6 +457,28 @@ def register_file(
             f"(v{document.version}) "
             f"→ {STATUS_READY_FOR_INGESTION}"
         )
+
+    record_audit(
+        session,
+        action=(
+            "RESTORED_PENDING_POLICY"
+            if was_deleted
+            else "FILE_UPDATED"
+        ),
+        actor_user_id=actor_user_id,
+        document_id=document.id,
+        details={
+            "relative_path": relative_path,
+            "version": document.version,
+            "status": document.status,
+            "content_changed": True,
+            "reason": (
+                "deleted path reused with new content"
+                if was_deleted
+                else "file content changed"
+            ),
+        },
+    )
 
     return document
 
@@ -491,6 +558,17 @@ def sync_document_directory() -> None:
                 if document.status != STATUS_DELETED:
 
                     document.status = STATUS_DELETED
+                    document.deleted_at = utc_now()
+
+                    record_audit(
+                        session,
+                        action="FILE_DELETED",
+                        document_id=document.id,
+                        details={
+                            "relative_path": document.relative_path,
+                            "source": "filesystem_sync",
+                        },
+                    )
 
                     print(
                         f"[DELETED] "

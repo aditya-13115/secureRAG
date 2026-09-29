@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from tqdm import tqdm
 
@@ -36,6 +36,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DOCUMENT_ROOT = (
     PROJECT_ROOT / "data" / "documents"
 )
+
+
+class IndexingSkipped(Exception):
+    """Raised when a document changed state while it was being indexed."""
 
 
 def get_document_path(
@@ -74,6 +78,7 @@ def index_document(
 ) -> tuple[int, float]:
 
     started = perf_counter()
+    index_version = document.version
 
     document.status = "INDEXING"
     db.flush()
@@ -169,10 +174,41 @@ def index_document(
             metadatas=metadatas,
         )
 
-        document.status = "INDEXED"
-        document.indexed_at = (
-            datetime.now(timezone.utc)
+        indexed_at = datetime.now(timezone.utc)
+
+        # Finalize only if the document is still the exact version/state that
+        # this worker started indexing. A concurrent policy change, upload,
+        # filesystem update or delete changes the status and/or version, so
+        # stale index output is discarded instead of becoming searchable.
+        result = db.execute(
+            update(Document)
+            .where(
+                Document.id == document.id,
+                Document.status == "INDEXING",
+                Document.version == index_version,
+            )
+            .values(
+                status="INDEXED",
+                indexed_at=indexed_at,
+            )
         )
+
+        if result.rowcount != 1:
+            db.rollback()
+
+            try:
+                vector_store.delete_document(document.id)
+            except Exception:
+                pass
+
+            try:
+                bm25_store.delete_document(document.id)
+            except Exception:
+                pass
+
+            raise IndexingSkipped(
+                f"Document {document.id} changed while indexing."
+            )
 
         db.commit()
 
@@ -181,6 +217,9 @@ def index_document(
         )
 
         return len(chunks), elapsed
+
+    except IndexingSkipped:
+        raise
 
     except Exception:
         db.rollback()
@@ -275,6 +314,7 @@ def index_ready_documents(
 
     indexed_count = 0
     failed_count = 0
+    skipped_count = 0
     total_chunks = 0
 
     progress = tqdm(
@@ -302,6 +342,17 @@ def index_ready_documents(
             progress.set_postfix(
                 chunks=chunk_count,
                 time=f"{elapsed:.2f}s",
+            )
+
+        except IndexingSkipped as exc:
+            skipped_count += 1
+            progress.set_postfix(
+                status="SKIPPED"
+            )
+            tqdm.write(
+                f"[SKIPPED] "
+                f"{document.filename}: "
+                f"{exc}"
             )
 
         except Exception as exc:
@@ -349,6 +400,10 @@ def index_ready_documents(
     print(
         f"Failed documents  : "
         f"{failed_count}"
+    )
+    print(
+        f"Skipped documents : "
+        f"{skipped_count}"
     )
     print(
         f"Total chunks      : "

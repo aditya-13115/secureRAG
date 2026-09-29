@@ -6,6 +6,7 @@ import {
   RotateCcw,
   Server,
   Sparkles,
+  ShieldAlert,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -16,6 +17,7 @@ import {
 import { sendChatMessage } from "./lib/api";
 
 import { AccessPanel } from "./components/AccessPanel";
+import { AdminConsole } from "./components/AdminConsole";
 import { ChatComposer } from "./components/ChatComposer";
 import { ChatMessage } from "./components/ChatMessage";
 import { SourceCard } from "./components/SourceCard";
@@ -25,6 +27,12 @@ import type {
   ChatResponse,
   DemoUser,
 } from "./types";
+
+const ADMIN_ROLES = new Set([
+  "CEO",
+  "CTO",
+  "COFOUNDER",
+]);
 
 interface Message {
   id: string;
@@ -62,6 +70,12 @@ function App() {
   const [error, setError] =
     useState<string | null>(null);
 
+  const [view, setView] =
+    useState<"chat" | "admin">("chat");
+
+  const [accessNotice, setAccessNotice] =
+    useState<string | null>(null);
+
   const [sidebarOpen, setSidebarOpen] =
     useState(true);
 
@@ -83,14 +97,22 @@ function App() {
       );
       setMessages([]);
       setError(null);
+
+      if (!ADMIN_ROLES.has(nextUser.role)) {
+        setView("chat");
+      }
     }
   }
 
-  function handleUserChange(
-    email: string
-  ) {
-    setSelectedUserEmail(email);
-    setMessages([]);
+  function handleAdminOpen() {
+    if (!ADMIN_ROLES.has(selectedUser.role)) {
+      setAccessNotice(
+        "You don't have access to Policy & Document Control. Only CEO, CTO and COFOUNDER can manage document policies and files."
+      );
+      return;
+    }
+
+    setView("admin");
     setError(null);
   }
 
@@ -211,8 +233,8 @@ function App() {
                 onRoleChange={
                   handleRoleChange
                 }
-                onUserChange={
-                  handleUserChange
+                onAdminOpen={
+                  handleAdminOpen
                 }
               />
 
@@ -353,6 +375,13 @@ function App() {
 
         {/* MAIN */}
         <main className="relative flex min-w-0 flex-1 flex-col">
+          {view === "admin" ? (
+            <AdminConsole
+              email={selectedUser.email}
+              onClose={() => setView("chat")}
+            />
+          ) : (
+            <>
           {/* mobile / desktop control */}
           <div className="absolute left-4 top-4 z-10">
             <button
@@ -584,6 +613,32 @@ function App() {
               </div>
             </div>
           </div>
+            </>
+          )}
+
+          {accessNotice && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 px-6 backdrop-blur-sm">
+              <div className="w-full max-w-md rounded-2xl border border-amber-400/10 bg-[#101318] p-5 shadow-2xl shadow-black/40">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-400/10">
+                    <ShieldAlert size={16} className="text-amber-300" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-white/80">Admin access required</div>
+                    <div className="mt-2 text-xs leading-5 text-white/35">{accessNotice}</div>
+                  </div>
+                </div>
+                <div className="mt-5 flex justify-end">
+                  <button
+                    onClick={() => setAccessNotice(null)}
+                    className="rounded-xl bg-white px-4 py-2 text-xs font-semibold text-black"
+                  >
+                    Understood
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

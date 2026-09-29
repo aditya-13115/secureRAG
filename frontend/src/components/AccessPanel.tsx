@@ -2,6 +2,7 @@ import {
   Fingerprint,
   LockKeyhole,
   Shield,
+  Settings2,
 } from "lucide-react";
 
 import {
@@ -15,12 +16,14 @@ interface AccessPanelProps {
   selectedRole: string;
   selectedUser: DemoUser;
   onRoleChange: (role: string) => void;
+  onAdminOpen: () => void;
 }
 
 export function AccessPanel({
   selectedRole,
   selectedUser,
   onRoleChange,
+  onAdminOpen,
 }: AccessPanelProps) {
   return (
     <section className="rounded-2xl border border-white/[0.07] bg-[#0d1014] p-4 shadow-2xl shadow-black/20">
@@ -141,6 +144,23 @@ export function AccessPanel({
             </div>
           </div>
         </div>
+
+
+        {/* Policy & document control */}
+        <button
+          type="button"
+          onClick={onAdminOpen}
+          className="flex w-full items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-left transition hover:border-white/[0.12] hover:bg-white/[0.04]"
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.05]">
+            <Settings2 size={14} className="text-white/40" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-medium text-white/60">Policy & Document Control</div>
+            <div className="mt-0.5 text-[10px] text-white/20">CEO · CTO · COFOUNDER admin area</div>
+          </div>
+          <span className="text-[9px] text-white/15">OPEN</span>
+        </button>
 
         {/* Identity */}
         <div className="flex items-center gap-2 border-t border-white/[0.05] pt-3">
